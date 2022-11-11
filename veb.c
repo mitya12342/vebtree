@@ -194,3 +194,43 @@ void print_veb_contents(veb* veb) {
         min = veb_tree_successor(veb, min);
     }
 }
+
+void veb_tree_delete(veb* v, unsigned int x) {
+    if (v->min == v->max)
+    {
+        v->max = NIL;
+        v->min = NIL;
+    } else if (v->u == 2)
+    {
+        if (x == 0)
+        {
+            v->min = 1;
+        } else
+        {
+            v->min = 0;
+            v->max = 0;
+        } 
+    } else if (x == v->min)
+    {
+        unsigned int first_cluster = veb_tree_minimum(v->summary);
+        x = veb_index(v->u ,first_cluster, veb_tree_minimum(v->cluster[first_cluster]));
+        v->min = x;
+        veb_tree_delete(v->cluster[veb_high(v->u,x)], veb_low(v->u, x));
+        if (veb_tree_minimum(v->cluster[veb_high(v->u, x)]) == NIL) {
+            veb_tree_delete(v->summary, veb_high(v->u, x));
+            if (x == v->max) {
+                unsigned int summary_max = veb_tree_maximum(v->summary);
+                if (summary_max == NIL)
+                {
+                    v->max = v->min;
+                } else
+                {
+                    v->max = veb_index(v->u, summary_max, veb_tree_maximum(v->cluster[summary_max]));
+                }       
+            }
+        } else if (x == v->max)
+        {
+            v->max = veb_index(v->u,veb_high(v->u, x), veb_tree_maximum(v->cluster[veb_high(v->u, x)]));
+        }
+    }
+}

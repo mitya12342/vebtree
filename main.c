@@ -118,6 +118,9 @@ int main(int argc, char const *argv[])
                 }
             }
                 break;
+            case 'd':
+                veb_tree_delete(v, command_argument);
+                break;
             default:
                 break;
             }
