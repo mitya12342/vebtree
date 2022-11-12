@@ -28,6 +28,7 @@ int ms_time(clock_t start, clock_t end) {
 
 int main(int argc, char const *argv[])
 {
+    printf("Comparison tests\n");
     int current_test = 0;
     int successfull_tests = 0;
     int failed_tests = 0;
@@ -140,6 +141,7 @@ int main(int argc, char const *argv[])
 
         fclose(in_file);
         fclose(out_file);
+        fclose(result_file);
 
         printf("Test %d: ", current_test);
         if (wrong_line) {
