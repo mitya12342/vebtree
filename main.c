@@ -11,12 +11,12 @@ int compareFiles(FILE *f1, FILE *f2)
     char ch2 = getc(f2);
     int line = 1;
   
-    while (ch1 != EOF && ch2 != EOF)
+    while (!(ch1 == EOF && ch2 == EOF))
     {
-        if (ch1 == '\n' && ch2 == '\n') line++;
-        if (ch1 != ch2) return line;
+        if (ch1 == '\n') line++;
         ch1 = getc(f1);
         ch2 = getc(f2);
+        if (ch1 != ch2) return line;
     }
     return 0;
   
@@ -44,7 +44,7 @@ int main(int argc, char const *argv[])
         FILE* in_file = fopen(in_file_path, "r");
         if (!in_file) break;
         sprintf(result_path, "results/%i.txt", current_test);
-        FILE* result_file = fopen(result_path, "r+w");
+        FILE* result_file = fopen(result_path, "w");
         
         unsigned int tree_size;
         fscanf(in_file, "%u", &tree_size);
@@ -134,11 +134,12 @@ int main(int argc, char const *argv[])
         end_time = clock();
         destruction_time = (ms_time(start_time, end_time));
         FILE* out_file = fopen(out_file_path, "r");
+        fclose(result_file);
+        result_file = fopen(result_path, "r");
         int wrong_line = compareFiles(result_file, out_file);
 
         fclose(in_file);
         fclose(out_file);
-        fclose(result_file);
 
         printf("Test %d: ", current_test);
         if (wrong_line) {
