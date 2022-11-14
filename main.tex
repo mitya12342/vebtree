@@ -12,6 +12,14 @@
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstdefinestyle{C}{               
+    numbers=left,
+    numbersep=10pt,
+    breaklines=true
+}
 
 \title{Дерево ван Эмде Боаса}
 \author{Голобородько Димитрий}
@@ -22,29 +30,106 @@
 
 \section{Введение}
 \subsection{Суть и назначение}
-Дерево ван Эмде Боаса — поисковая структура данных, представляющая собой дерево поиска, позволяющее хранить целые неотрицательные числа в интервале $[0;2^k-1)$ и осуществлять над ними операции find, insert, remove, successor, predecessor, min, max за $O(log{k})$ при затратах памяти $\Theta(2^k)$.
+Дерево ван Эмде Боаса — поисковая структура данных, представляющая собой дерево поиска, позволяющее хранить уникальные целые неотрицательные числа в интервале $[0;2^k)$ и осуществлять над ними основные операции поисковой структуры данных за $O(log{k})$ при затратах памяти $\Theta(2^k)$.
 \subsection{История}
 Структура разработана осенью 1974 года Питером ван Эмде Боасом во время его трёхмесячного пост-докторского резиденства в Корнеллском университете и представлена в 1975 году. Автор структуры отмечает, что на его ранние публикации оказывал влияние культурный климат в алгоритмике середины 1970-х годов, на фоне которого структура была разработана для машины указателей (pointer machine). Причина в том, что рекурсивный подход требует адресных вычислений. Данные операции не допускались в модели машины с произвольным доступом (RAM), которая была стандартной моделью в развивающейся области исследований проектирования и анализа алгоритмов в 1974 году. Недостатком этого подхода является то, что он приводит к довольно сложным алгоритмам, которые и сегодня трудно корректно реализовать. 
 \subsection{Применение}
+Данное дерево может применяться в задачах, где требуется поисковая структура данных для множества уникальных целых неотрицаетльных чисел, верхняя граница которого известна заранее, либо ограничена типом данных, при этом количество чисел достаточно велико, чтобы оправдать накладные расходы памяти.
 В сети встречаются упоминания применения дерева ван Эмде Боаса в алгоритмах на графах и вычислительной геометрии, а также в сетевых маршрутизаторах.
 \section{Описание}
-\subsection{Структура данных}
-Дерево ван Эмде Боаса является рекурсивной структурой, каждый узел которого является корнем дерева и содержит в себе:
+\subsection{Поддерживаемые операции}
 \begin{itemize}
-    \item u - размерность дерева, бит
-    \item min, max - хранят минимальный и максимальный элемент дерева
-    \item summary - указатель на справочную структуру, которая также является деревом ван Эмде Боаса с размерностью $\sqrt{u}$ бит
+    \item member - проверка наличия числа в структуре
+    \item insert - вставка числа
+    \item remove - удаление числа
+    \item successor - поиск следующего по возрастанию числа за данным
+    \item predecessor - поиск следующего по убыванию числа за данным
+    \item min, max - посик минимального, максимального хранимых чисел 
+\end{itemize}
+\subsection{Вспомогательные функции}
+Для поддержки размерностей дерева, из значений которых целый квадратный корень не извлекается, введены следующие вспомогательные функции:
+\begin{itemize}
+    \item lower\_sqrt(x) - ''нижний квадратный корень'', равен $2^{\lfloor\log_{2}(x)/2\rfloor}$
+    \item upper\_sqrt(x) - ''верхний квадратный корень'', равен $2^{\lceil\log_{2}(x)/2\rceil}$
+\end{itemize}
+При этом $x = upper\_sqrt(x) * lower\_sqrt(x)$, а когда $\sqrt{x}$ - целое, верно $\sqrt{x} = upper\_sqrt(x) = lower\_sqrt(x)$
+\begin{itemize}
+    \item low(u, x) - младшие $2^{\lfloor\log_{2}(u)/2\rfloor}$ бит номера элемента x, вычисляются как $\lfloor{x/lower\_sqrt(u)}\rfloor$ где u - размерность текущего поддерева
+    \item high(u, x) - старшие $2^{\lceil\log_{2}(u)/2\rceil}$ бит номера x, вычисляются как $x\mod{lower\_sqrt()}$  где u - размерность текущего поддерева
+    \item index(u, x, y) - совмещает номер элемента из старших бит x и младших бит y, вычисляется как $x*lower\_sqrt(u) + y$, где u - размерность текущего поддерева
+    
+\end{itemize}
+\subsection{Структура данных}
+Дерево ван Эмде Боаса является рекурсивной структурой, каждый узел которого является корнем поддерева и содержит в себе:
+\begin{itemize}
+    \item u - размерность поддерева, элементов
+    \item min, max - хранят минимальный и максимальный элемент поддерева
+    \item summary - указатель на справочную структуру, которая также является деревом ван Эмде Боаса с размерностью $\sqrt{u}$ элементов 
     \item cluster - массив из $\sqrt{u}$ указателей на поддеревья с размерностью $\sqrt{u}$
 \end{itemize}
+\subsection{Входные данные и ограничения}
+Оргинальная структура, представленная Питером ван Эмде Боасом требует корректности входных данных, а именно, не гарантирует корректного удаления не существующего элемента, добавления уже существующего элемента. Размерность дерева u должна быть степенью числа 2. Все операции на дереве размерностью u подразумевают работу только с числами из интервала $[0;u)$.
 \section{Формальная постановка задачи}
-Исследовать и реализовать дерево ван Эмде Боаса...
+Исследовать и реализовать дерево ван Эмде Боаса в виде набора функций для создания и удаления рекурсивной структуры дерева, исполнения набора поддерживаемых операций (member, insert, remove, successor, predecessor, min, max).
 \section{Реализация}
-\subsection{Тесты}
-\subsection{Производительность}
-\section{Заключение}
+В реализации в рамках данного доклада для значения элемента выбран тип unsigned int, что ограничивает максимальную размерность дерева значением в $2^{32}-1$ элементов, при этом последний элемент unsigned int ($2^{32}-1$) зарезервирован как флаг, обозначающий пустой элемент NIL в полях min и max.
+\subsection{Структура узла}
+\begin{lstlisting}[language=C,style=C]
+typedef struct veb_node veb;
+struct veb_node
+{
+    unsigned int u;
+    unsigned int min;
+    unsigned int max;
+    veb *summary;
+    veb **cluster;
+};
+\end{lstlisting}
+\subsection{Вспомогательные функции}
+\begin{lstlisting}[language=C,style=C]
+const unsigned int NIL = -1;
 
+unsigned int veb_upper_sqrt(unsigned int u) {
+    return pow(2, ceil(log2(u)/2));
+}
 
-\bibliographystyle{alpha}
-\bibliography{sample}
+unsigned int veb_lower_sqrt(unsigned int u) {
+    return pow(2, floor(log2(u)/2));
+}
+
+unsigned int veb_high(unsigned int u,  unsigned int x) {
+    return floor(x/veb_lower_sqrt(u));
+}
+
+unsigned int veb_low(unsigned int u, unsigned int x) {
+    return x % veb_lower_sqrt(u);
+}
+
+unsigned int veb_index(unsigned int u, unsigned int x, unsigned int y) {
+    return x*veb_lower_sqrt(u)+y;
+}
+\end{lstlisting}
+\subsection{Min, max}
+Значения минимума и максимума дерева ван Эмде Боаса, хрянятся в полях структуры корня, поэтому могут быть получены за константное время.
+\begin{lstlisting}[language=C,style=C]
+unsigned int veb_tree_minimum(veb* v) {
+    return v->min;
+}
+unsigned int veb_tree_maximum(veb* v) {
+    return v->max;
+}
+\end{lstlisting}
+\subsection{Member}
+...
+\section{Список литературы}
+\begin{itemize}
+    \item \url{https://edutechlearners.com/download/Introduction_to_algorithms-3rd\%20Edition.pdf}
+    \item \url{https://www.mi.fu-berlin.de/inf/groups/ag-ti/theses/download/Ehrhardt15.pdf}
+    \item \url{https://mathoverflow.net/questions/2245/determining-the-space-complexity-of-van-emde-boas-trees}
+    \item \url{https://web.stanford.edu/class/archive/cs/cs166/cs166.1166/lectures/14/Slides14.pdf}
+    \item \url{https://toc.csail.mit.edu/node/757}
+    \item \url{https://fileadmin.cs.lth.se/cs/Personal/Rolf_Karlsson/lect12.pdf}
+    \item \url{https://leprofesseur.org/algorithms-lecture-019-van-emde-boas-veb-trees/}
+\end{itemize}
 
 \end{document}
