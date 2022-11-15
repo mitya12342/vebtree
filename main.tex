@@ -2,6 +2,7 @@
 
 % Language setting
 % Replace `english' with e.g. `spanish' to change the document language
+\usepackage[utf8]{inputenc}
 \usepackage[russian]{babel}
 
 % Set page size and margins
@@ -13,7 +14,7 @@
 \usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage{listings}
-\usepackage{xcolor}
+\usepackage{float   }
 
 \lstdefinestyle{C}{               
     numbers=left,
@@ -47,7 +48,7 @@
     \item min, max - посик минимального, максимального хранимых чисел 
 \end{itemize}
 \subsection{Вспомогательные функции}
-Для поддержки размерностей дерева, из значений которых целый квадратный корень не извлекается, введены следующие вспомогательные функции:
+Для поддержки тех размерностей поддеревьев, из значений которых целый квадратный корень не извлекается, введены следующие вспомогательные функции:
 \begin{itemize}
     \item lower\_sqrt(x) - ''нижний квадратный корень'', равен $2^{\lfloor\log_{2}(x)/2\rfloor}$
     \item upper\_sqrt(x) - ''верхний квадратный корень'', равен $2^{\lceil\log_{2}(x)/2\rceil}$
@@ -64,9 +65,16 @@
 \begin{itemize}
     \item u - размерность поддерева, элементов
     \item min, max - хранят минимальный и максимальный элемент поддерева
-    \item summary - указатель на справочную структуру, которая также является деревом ван Эмде Боаса с размерностью $\sqrt{u}$ элементов 
-    \item cluster - массив из $\sqrt{u}$ указателей на поддеревья с размерностью $\sqrt{u}$
+    \item summary - указатель на справочную структуру, которая также является деревом ван Эмде Боаса с размерностью $upper\_sqrt(u)$ элементов 
+    \item cluster - массив из $upper\_sqrt(u)$ указателей на поддеревья с размерностью $upper\_sqrt(u)$
 \end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{veb.png}
+    \caption{Дерево ван Эмде Боаса размерностью 16, содержащее числа \{2, 3, 4, 5, 7, 14, 15\}}
+\end{figure}
+
 \subsection{Входные данные и ограничения}
 Оргинальная структура, представленная Питером ван Эмде Боасом требует корректности входных данных, а именно, не гарантирует корректного удаления не существующего элемента, добавления уже существующего элемента. Размерность дерева u должна быть степенью числа 2. Все операции на дереве размерностью u подразумевают работу только с числами из интервала $[0;u)$.
 \section{Формальная постановка задачи}
@@ -85,7 +93,7 @@ struct veb_node
     veb **cluster;
 };
 \end{lstlisting}
-\subsection{Вспомогательные функции}
+\subsection{Реализация вспомогательных функций}
 \begin{lstlisting}[language=C,style=C]
 const unsigned int NIL = -1;
 
@@ -120,7 +128,82 @@ unsigned int veb_tree_maximum(veb* v) {
 }
 \end{lstlisting}
 \subsection{Member}
-...
+\begin{lstlisting}[language=C,style=C]
+unsigned int veb_tree_member(veb* v, unsigned int x){
+    return
+        x == v->min || x == v->max ? 1 :
+        v->u == 2 ? 0 :
+        veb_tree_member(v->cluster[veb_high(v->u,x)], veb_low(v->u, x));
+}
+\end{lstlisting}
+Строка 3 проверяет случай, в котором искомый элемент x является максимальным или минимальным в дереве, и возвращает истину, если это так. Строка 4 проверяет случай, в котором поддерево размерностью $u=2$ не имеет элементов, возвращает ложь если это так. В противном случае происходит рекурсивное углубление в поддерево с индексом high(u, x) и поиск числа $x = low(u, x)$
+\subsection{Successor, predecessor}
+\begin{lstlisting}[language=C,style=C]
+unsigned int veb_tree_successor(veb* v, unsigned int x){
+    if (v->u == 2) {
+        if (x == 0 && v->max == 1) {
+            return 1;
+        } else {
+            return NIL;
+        }
+    } else if (v->min != NIL && x < v->min)
+    {
+        return v->min;
+    } else {
+        unsigned int max_low = veb_tree_maximum(v->cluster[veb_high(v->u,x)]);
+        if (max_low != NIL && veb_low(v->u, x) < max_low) {
+            unsigned int offset = veb_tree_successor(v->cluster[veb_high(v->u, x)], veb_low(v->u,x));
+            return veb_index(v->u, veb_high(v->u, x), offset);
+        }
+        else {
+            unsigned int succ_cluster = veb_tree_successor(v->summary, veb_high(v->u,x));
+            if (succ_cluster == NIL)
+            {
+                return NIL;
+            } else {
+                unsigned int offset = veb_tree_minimum(v->cluster[succ_cluster]);
+                return veb_index(v->u, succ_cluster, offset);
+            }
+        }
+    }
+}
+\end{lstlisting}
+\begin{lstlisting}[language=C,style=C]
+unsigned int veb_tree_predecessor(veb* v, unsigned int x){
+    if (v->u == 2) {
+        if (x == 1 && v->min == 0) {
+            return 0;
+        } else {
+            return NIL;
+        }
+    } else if (v->max != NIL && x > v->max)
+    {
+        return v->max;
+    } else {
+        unsigned int min_low = veb_tree_minimum(v->cluster[veb_high(v->u, x)]);
+        if (min_low != NIL && veb_low(v->u, x) > min_low) {
+            unsigned int offset = veb_tree_predecessor(v->cluster[veb_high(v->u, x)], veb_low(v->u, x));
+            return veb_index(v->u, veb_high(v->u, x), offset);
+        } else {
+            unsigned int pred_cluster = veb_tree_predecessor(v->summary, veb_high(v->u, x));
+            if (pred_cluster == NIL) {
+                if (v->min != NIL && x > v->min){
+                    return v->min;
+                } else {
+                    return NIL;
+                }
+            } else {
+                unsigned int offset = veb_tree_maximum(v->cluster[pred_cluster]);
+                return veb_index(v->u, pred_cluster, offset);
+            }
+        }
+    }
+}
+\end{lstlisting}
+Строки 2-7 проверяют базовый случай 
+
+
+
 \section{Список литературы}
 \begin{itemize}
     \item \url{https://edutechlearners.com/download/Introduction_to_algorithms-3rd\%20Edition.pdf}
@@ -131,5 +214,6 @@ unsigned int veb_tree_maximum(veb* v) {
     \item \url{https://fileadmin.cs.lth.se/cs/Personal/Rolf_Karlsson/lect12.pdf}
     \item \url{https://leprofesseur.org/algorithms-lecture-019-van-emde-boas-veb-trees/}
 \end{itemize}
+
 
 \end{document}
