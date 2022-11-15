@@ -59,8 +59,7 @@ unsigned int veb_tree_member(veb* v, unsigned int x){
 }
 
 unsigned int veb_tree_successor(veb* v, unsigned int x){
-    if (v->u == 2)
-    {
+    if (v->u == 2) {
         if (x == 0 && v->max == 1) {
             return 1;
         } else {
@@ -162,12 +161,13 @@ veb* create_veb(unsigned int u) {
     new_veb->u = u;
     if (u > 2) {
         unsigned int upper_sqrt = veb_upper_sqrt(u);
+        unsigned int lower_sqrt = veb_lower_sqrt(u);
         new_veb->summary = create_veb(upper_sqrt);
         if (!(new_veb->summary)) return NULL;
         new_veb->cluster = (veb**)malloc(upper_sqrt * sizeof(veb));
         if (!(new_veb->cluster)) return NULL;
         for (int i = 0; i < upper_sqrt; i++){
-            new_veb->cluster[i] = create_veb(upper_sqrt);
+            new_veb->cluster[i] = create_veb(lower_sqrt);
             if (!(new_veb->cluster[i])) return NULL;
         }
     }
