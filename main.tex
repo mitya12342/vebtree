@@ -168,6 +168,9 @@ unsigned int veb_tree_successor(veb* v, unsigned int x){
     }
 }
 \end{lstlisting}
+Строки 2-7 проверяют базовый случай, в котором искомый элемент является следующим за 0 и элемент 1 при этом находится в поддереве размерностью 2. Иначе, строка 8 проверяет если x строго меньше минимума дерева, и возвращает его если это так.
+Иначе если исполнение доходит до строки 12, известно что x больше или равен минимальному значению дерева. В строке 12 происходит присваевание переменной max\_low максимального элемента в кластере x. Если найден элемент больше x, то известно, что последующий элемент за x находится где-то в поддереве кластера x. Эта проверка выполняется строкой 13. Если это так, строка 14 определяет где именно в кластере находится элемент и строка 15 вычисляет и возвращает найденный элемент.
+Выполнение доходит до строки 17 в том случае, если x больше или равен наибольшему элементу в кластере. В этом случае, строки 18-28 производят поиск в дргуих непустых кластерах. Переменной succ\_cluster присваевается номер следующего непустого кластера, найденного с помощью справочной структуры.
 \begin{lstlisting}[language=C,style=C]
 unsigned int veb_tree_predecessor(veb* v, unsigned int x){
     if (v->u == 2) {
@@ -200,9 +203,131 @@ unsigned int veb_tree_predecessor(veb* v, unsigned int x){
     }
 }
 \end{lstlisting}
-Строки 2-7 проверяют базовый случай 
+Операция predecessor противоположена successor за исключением дополнительного случая, обрабатываемого строками 19-20. Случай возникает, когда предыдущий элемент от x, если он находится в дереве, не находится в кластере x. Если предыдущий элемент x - минимум дерева, то последующего элемента в дереве нет (он в поле min). Строка 20 возвращает минимум в данном случае.
+\subsection{Insert}
+\begin{lstlisting}[language=C,style=C]
+void veb_empty_tree_insert(veb* v, unsigned int x) {
+    v->min = x;
+    v->max = x;
+}
+\end{lstlisting}
+Так как элементы хранятся в полях min и max, вставка элемента в пустое дерево выполняется за константное время.
+\begin{lstlisting}[language=C,style=C]
+void veb_exchange(unsigned int* a, unsigned int* b) {
+   unsigned int temp = *a;
+   *a = *b;
+   *b = temp;
+}
+\end{lstlisting}
+Вспомогательная функция обмена значений переменных между собой
+\begin{lstlisting}[language=C,style=C]
+void veb_tree_insert(veb* v, unsigned int x) {
+    if (v->min == NIL) {
+        veb_empty_tree_insert(v, x);
+    } else {
+        if (x < v->min) { 
+            veb_exchange(&x,&(v->min));
+        }
+        if (v->u > 2) {
+            if (veb_tree_minimum(v->cluster[veb_high(v->u,x)]) == NIL) {
+                veb_tree_insert(v->summary, veb_high(v->u, x));
+                veb_empty_tree_insert(v->cluster[veb_high(v->u, x)], veb_low(v->u, x));
+            } else {
+                veb_tree_insert(v->cluster[veb_high(v->u, x)], veb_low(v->u, x));
+            }
+        }
+        if (x > v->max)
+        {
+            v->max = x;
+        }
+    }
+}
+\end{lstlisting}
+Вставка элемента в дерево ван Эмде Боаса предполагает, что дерево ещё не содержит данного элемента.
+Строка 2 проверяет если поддерево пустое, и вызывает функцию veb\_empty\_tree\_insert() вставки в пустое дерево. Иначе строки 4-21 выполняют вставку в один из кластеров непустого дерева. Строка 5 проверяет если x является новым минимумом дерева, в данном случае строка 6 меняет минимум и вставляемый элемент местами и алгоритм продолжает вставлять уже предыдущий минимум. Строки 9-15 выполняются только если размерноость дерева больше двух. Строка 9 определяет, если кластер, в который необходимо вставить элемент - пуст, и в данном случае строка 10 добавляет номер кластера в справочное поддерево, а строка 11 добавляет x в пустой кластер. Иначе, если кластер не пуст, строка 13 рекурсивно добавляет x в кластер. Строки 16-19 обновляют максимум дерева, в случае если вставляемый элемент больше максимума.
+
+\subsection{Delete}
+Удаление элемента из дерева ван Эмде Боаса предполагает, что дерево содержит данный элемент.
+\begin{lstlisting}[language=C,style=C]
+void veb_tree_delete(veb* v, unsigned int x) {
+    if (v->min == v->max) {
+        v->min = NIL;
+        v->max = NIL;
+    } else if (v->u == 2) {
+        if (x == 0) {
+            v->min = 1;
+        } else {
+            v->min = 0;
+        }
+        v->max = v->min;
+    } else {
+        if (x == v->min) {
+            unsigned int first_cluster = veb_tree_minimum(v->summary);
+            x = veb_index(v->u, first_cluster, veb_tree_minimum(v->cluster[first_cluster]));
+            v->min = x;
+        }
+        veb_tree_delete(v->cluster[veb_high(v->u,x)], veb_low(v->u, x));   
+        if (veb_tree_minimum(v->cluster[veb_high(v->u, x)]) == NIL) {
+            veb_tree_delete(v->summary, veb_high(v->u, x));
+            if (x == v->max) {
+                unsigned int summary_max = veb_tree_maximum(v->summary);
+                if (summary_max == NIL) {
+                    v->max = v->min;
+                } else {
+                    v->max = veb_index(v->u, summary_max, veb_tree_maximum(v->cluster[summary_max]));
+                }       
+            }
+        } else if (x == v->max) {
+            v->max = veb_index(v->u, veb_high(v->u, x), veb_tree_maximum(v->cluster[veb_high(v->u, x)]));
+        }
+    }
+}
+\end{lstlisting}
+Если дерево содержит только один элемент, удалить его можно также просто и за константное время, как и вставить элемент в пустое дерево. Строка 2 проверяет этот случай и строки 3-4 заменяют максимум и минимум дерева на NIL. Иначе дерево содержит как минимум два элемента. Строка 5 проверяет это условие, и строки 6-11 устанавливают минимум и максимум равными оставшемуся элементу.
+Иначе выполняются сроки 12-33 для дерева с размерностью 4 и более, с двумя и более элементами. В этом случае нужно удалять элемент из кластера. Элемент может не быть x но, если элемент равен минимуму, то, когда удаляется x, другой элемент в одном из кластеров становится новым минимумом и также должен быть удалён из кластера. Если проходит проверка на строке 13, строка 14 задаёт переменную first\_cluster номером кластера, который содержит минимальный элемент, отличный от минимума, и строка 15 задаёт x равным значению наименьшего элемента в кластере. Строка 16 задаёт элемент новым минимумом поддерева, и так как этот элемент - новый x, он будет удалён.
+Со строки 18 начинается удаление элемента x, после удаления кластер может оказаться пуст, что проверяет строка 19, и, если это так - удаляет номер кластера x из справочного поддерева на строке 20. После обновления справочного поддерева, необходимо обновить поле max. Строка 21 проверяет, если удаляется максимальный элемент дерева, и, если это так, задаётся переменная summary\_max с наибольшим номером непустого кластера (полученным из справочного поддерева). Это и последующие обращения работают корректно, поскольку максимум справочного поддерева уже был скорректирован после рекурсивного запуска (если это требовалось). Если все кластеры пусты, то оставшийся элемент - min, строка 23 проверяет этот случай, и строка 24 соответственно обновляет max, иначе строка 26 устанавливает max равным максимальному элементу кластера с наибольшим номером.
+Наконец необходимо обработать случай, в котором клстер x не стал пуст после удаления x. В этом случае может потребоваться обновление максимума. Этот случай проверяется строкой 29, и строка 30 выполняет обновление.
 
 
+
+
+\subsection{Создание и разрушение дерева}
+\begin{lstlisting}[language=C,style=C]
+veb* create_veb(unsigned int u) {
+    veb* new_veb = (veb*)malloc(sizeof(veb));
+    
+    if (!new_veb) return NULL;
+    new_veb->max = NIL;
+    new_veb->min = NIL;
+    new_veb->u = u;
+    if (u > 2) {
+        unsigned int upper_sqrt = veb_upper_sqrt(u);
+        unsigned int lower_sqrt = veb_lower_sqrt(u);
+        new_veb->summary = create_veb(upper_sqrt);
+        if (!(new_veb->summary)) return NULL;
+        new_veb->cluster = (veb**)malloc(upper_sqrt * sizeof(veb));
+        if (!(new_veb->cluster)) return NULL;
+        for (int i = 0; i < upper_sqrt; i++){
+            new_veb->cluster[i] = create_veb(lower_sqrt);
+            if (!(new_veb->cluster[i])) return NULL;
+        }
+    }
+    return new_veb;
+}
+\end{lstlisting}
+\begin{lstlisting}[language=C,style=C]
+void destroy_veb(veb* veb) {
+    if (veb->u > 2) {
+        unsigned int upper_sqrt = veb_upper_sqrt(veb->u);
+        destroy_veb(veb->summary);
+        for (int i = 0; i < upper_sqrt; i++) {
+            destroy_veb(veb->cluster[i]);
+        }
+        free(veb->cluster);
+    }
+    free(veb);
+}
+\end{lstlisting}
 
 \section{Список литературы}
 \begin{itemize}
@@ -213,6 +338,7 @@ unsigned int veb_tree_predecessor(veb* v, unsigned int x){
     \item \url{https://toc.csail.mit.edu/node/757}
     \item \url{https://fileadmin.cs.lth.se/cs/Personal/Rolf_Karlsson/lect12.pdf}
     \item \url{https://leprofesseur.org/algorithms-lecture-019-van-emde-boas-veb-trees/}
+    \item \url{https://habr.com/ru/post/125499/}
 \end{itemize}
 
 
