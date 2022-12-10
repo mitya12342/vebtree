@@ -26,6 +26,58 @@ int ms_time(clock_t start, clock_t end) {
     return (int)((double) (end - start)) / (CLOCKS_PER_SEC / 1000);
 }
 
+unsigned int rand_int() {
+    unsigned int result = 0;
+    ((unsigned char*)&result)[0] = rand() % 256;
+    ((unsigned char*)&result)[1] = rand() % 256;
+    ((unsigned char*)&result)[2] = rand() % 256;
+    ((unsigned char*)&result)[3] = rand() % 256;
+    return result;
+}
+
+void veb_fill_random(veb* v, unsigned int n) {
+    for (unsigned int i = 0; i < n; i++)
+    {
+        unsigned int num;
+        while (1)
+        {
+            num = rand_int() % v->u;
+            if (!veb_tree_member(v, num))
+            {
+                veb_tree_insert(v, num);
+                break;
+            }
+        }
+    }
+}
+
+double veb_random_member_time(veb* v, unsigned int n) {
+    time_t start = clock();
+    for (unsigned int i = 0; i < n; i++)
+    {
+        veb_tree_member(v, rand_int()%v->u);
+    }
+    return ((double)ms_time(start, clock()))/n*1000000;
+}
+
+double veb_random_successor_time(veb* v, unsigned int n) {
+    time_t start = clock();
+    for (unsigned int i = 0; i < n; i++)
+    {
+        veb_tree_successor(v, rand_int()%v->u);
+    }
+    return ((double)ms_time(start, clock()))/n*1000000;
+}
+
+double veb_random_predecessor_time(veb* v, unsigned int n) {
+    time_t start = clock();
+    for (unsigned int i = 0; i < n; i++)
+    {
+        veb_tree_predecessor(v, rand_int()%v->u);
+    }
+    return ((double)ms_time(start, clock()))/n*1000000;
+}
+
 int main(int argc, char const *argv[])
 {
     printf("Comparison tests\n");
@@ -55,7 +107,7 @@ int main(int argc, char const *argv[])
         if (!v)
         {
             printf("Test %d: failed to create tree of size %d\n", current_test, tree_size);
-            break;
+            exit(1);
         }
         
         creation_time = (ms_time(start_time, end_time));
@@ -157,5 +209,51 @@ int main(int argc, char const *argv[])
         current_test++; 
     }
     printf("OK: %d, FAIL: %d \n", successfull_tests, failed_tests);
+
+    printf("Performance tests\n");
+    time_t start_time, end_time;
+    FILE* perf_file = fopen("perf.txt", "w");
+
+    for (int i = 17; i <= 24; i++)
+    {
+        srand(42);
+        unsigned int size = 1U<<i;
+        printf("2^%d\n", i);
+        fprintf(perf_file, "%d", size);
+
+        start_time = clock();
+        veb* a = create_veb(size);
+        end_time = clock();
+        if (a == NULL) {
+            printf("\nFailed to create tree of size 2^%d\n", i);
+            exit(1);
+        };
+        int time = ms_time(start_time, end_time);
+        fprintf(perf_file, " %d", time);
+
+        start_time = clock();
+        veb_fill_random(a, 1000);
+        fprintf(perf_file, " %f", veb_random_member_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, 1000000));
+        veb_fill_random(a, 9000);
+        fprintf(perf_file, " %f", veb_random_member_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, 1000000));
+        veb_fill_random(a, 90000);
+        fprintf(perf_file, " %f", veb_random_member_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, 1000000));
+
+        end_time = clock();
+        start_time = clock();
+        destroy_veb(a);
+        end_time = clock();
+        time = ms_time(start_time, end_time);
+        fprintf(perf_file, " %d", time);
+
+        fprintf(perf_file, "\n");
+    }
+    
     return 0;
 }
