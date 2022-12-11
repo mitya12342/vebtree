@@ -164,7 +164,7 @@ veb* create_veb(unsigned int u) {
         unsigned int lower_sqrt = veb_lower_sqrt(u);
         new_veb->summary = create_veb(upper_sqrt);
         if (!(new_veb->summary)) return NULL;
-        new_veb->cluster = (veb**)malloc(upper_sqrt * sizeof(veb));
+        new_veb->cluster = (veb**)malloc(upper_sqrt * sizeof(veb*));
         if (!(new_veb->cluster)) return NULL;
         for (int i = 0; i < upper_sqrt; i++){
             new_veb->cluster[i] = create_veb(lower_sqrt);
