@@ -3,7 +3,10 @@
 #include <time.h>
 #include "veb.c"
 
-int compareFiles(FILE *f1, FILE *f2)
+#define reads 1000000
+unsigned int random_array[reads];
+
+int compare_files(FILE *f1, FILE *f2)
 {
     fseek(f1, 0, SEEK_SET);
     fseek(f2, 0, SEEK_SET);
@@ -51,31 +54,31 @@ void veb_fill_random(veb* v, unsigned int n) {
     }
 }
 
-double veb_random_member_time(veb* v, unsigned int n) {
+double veb_random_member_time(veb* v, unsigned int* random) {
     time_t start = clock();
-    for (unsigned int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < reads; i++)
     {
-        veb_tree_member(v, rand_int()%v->u);
+        veb_tree_member(v, random[i]%v->u);
     }
-    return ((double)ms_time(start, clock()))/n*1000000;
+    return ((double)ms_time(start, clock()))/reads*1000000;
 }
 
-double veb_random_successor_time(veb* v, unsigned int n) {
+double veb_random_successor_time(veb* v, unsigned int* random) {
     time_t start = clock();
-    for (unsigned int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < reads; i++)
     {
-        veb_tree_successor(v, rand_int()%v->u);
+        veb_tree_successor(v, random[i]%v->u);
     }
-    return ((double)ms_time(start, clock()))/n*1000000;
+    return ((double)ms_time(start, clock()))/reads*1000000;
 }
 
-double veb_random_predecessor_time(veb* v, unsigned int n) {
+double veb_random_predecessor_time(veb* v, unsigned int* random) {
     time_t start = clock();
-    for (unsigned int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < reads; i++)
     {
-        veb_tree_predecessor(v, rand_int()%v->u);
+        veb_tree_predecessor(v, random[i]%v->u);
     }
-    return ((double)ms_time(start, clock()))/n*1000000;
+    return ((double)ms_time(start, clock()))/reads*1000000;
 }
 
 int main(int argc, char const *argv[])
@@ -189,7 +192,7 @@ int main(int argc, char const *argv[])
         FILE* out_file = fopen(out_file_path, "r");
         fclose(result_file);
         result_file = fopen(result_path, "r");
-        int wrong_line = compareFiles(result_file, out_file);
+        int wrong_line = compare_files(result_file, out_file);
 
         fclose(in_file);
         fclose(out_file);
@@ -212,6 +215,13 @@ int main(int argc, char const *argv[])
 
     printf("Performance tests\n");
     time_t start_time, end_time;
+
+    srand(321);
+    for (unsigned int i = 0; i < reads; i++)
+    {
+        random_array[i] = rand_int();
+    }
+
     FILE* perf_file = fopen("perf.txt", "w");
 
     for (int i = 17; i <= 24; i++)
@@ -233,17 +243,17 @@ int main(int argc, char const *argv[])
 
         start_time = clock();
         veb_fill_random(a, 1000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, 1000000));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, 1000000));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_member_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, random_array));
         veb_fill_random(a, 9000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, 1000000));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, 1000000));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_member_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, random_array));
         veb_fill_random(a, 90000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, 1000000));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, 1000000));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, 1000000));
+        fprintf(perf_file, " %f", veb_random_member_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, random_array));
 
         end_time = clock();
         start_time = clock();
