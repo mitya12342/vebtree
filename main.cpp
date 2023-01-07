@@ -2,9 +2,19 @@
 #include <string.h>
 #include <time.h>
 #include "veb.c"
+#include <random>
 
-#define reads 1000000
-unsigned int random_array[reads];
+#define requests 1000000
+unsigned int random_requests_array[requests];
+std::mt19937 mt;
+
+void fill_requests_array(unsigned int u, unsigned int* array){
+    std::uniform_int_distribution<unsigned int> distrib(0, u-1);
+    for (unsigned int i = 0; i < requests; i++)
+    {
+        array[i] = distrib(mt);
+    }
+}
 
 int compare_files(FILE *f1, FILE *f2)
 {
@@ -29,22 +39,14 @@ int ms_time(clock_t start, clock_t end) {
     return (int)((double) (end - start)) / (CLOCKS_PER_SEC / 1000);
 }
 
-unsigned int rand_int() {
-    unsigned int result = 0;
-    ((unsigned char*)&result)[0] = rand() % 256;
-    ((unsigned char*)&result)[1] = rand() % 256;
-    ((unsigned char*)&result)[2] = rand() % 256;
-    ((unsigned char*)&result)[3] = rand() % 256;
-    return result;
-}
-
 void veb_fill_random(veb* v, unsigned int n) {
+    std::uniform_int_distribution<unsigned int> distrib(0, v->u-1);
     for (unsigned int i = 0; i < n; i++)
     {
         unsigned int num;
         while (1)
         {
-            num = rand_int() % v->u;
+            num = distrib(mt);
             if (!veb_tree_member(v, num))
             {
                 veb_tree_insert(v, num);
@@ -56,29 +58,29 @@ void veb_fill_random(veb* v, unsigned int n) {
 
 double veb_random_member_time(veb* v, unsigned int* random) {
     time_t start = clock();
-    for (unsigned int i = 0; i < reads; i++)
+    for (unsigned int i = 0; i < requests; i++)
     {
-        veb_tree_member(v, random[i]%v->u);
+        veb_tree_member(v, random[i]);
     }
-    return ((double)ms_time(start, clock()))/reads*1000000;
+    return ((double)ms_time(start, clock()))/requests*1000000;
 }
 
 double veb_random_successor_time(veb* v, unsigned int* random) {
     time_t start = clock();
-    for (unsigned int i = 0; i < reads; i++)
+    for (unsigned int i = 0; i < requests; i++)
     {
-        veb_tree_successor(v, random[i]%v->u);
+        veb_tree_successor(v, random[i]);
     }
-    return ((double)ms_time(start, clock()))/reads*1000000;
+    return ((double)ms_time(start, clock()))/requests*1000000;
 }
 
 double veb_random_predecessor_time(veb* v, unsigned int* random) {
     time_t start = clock();
-    for (unsigned int i = 0; i < reads; i++)
+    for (unsigned int i = 0; i < requests; i++)
     {
-        veb_tree_predecessor(v, random[i]%v->u);
+        veb_tree_predecessor(v, random[i]);
     }
-    return ((double)ms_time(start, clock()))/reads*1000000;
+    return ((double)ms_time(start, clock()))/requests*1000000;
 }
 
 int main(int argc, char const *argv[])
@@ -216,20 +218,15 @@ int main(int argc, char const *argv[])
     printf("Performance tests\n");
     time_t start_time, end_time;
 
-    srand(321);
-    for (unsigned int i = 0; i < reads; i++)
-    {
-        random_array[i] = rand_int();
-    }
-
     FILE* perf_file = fopen("perf.txt", "w");
 
     for (int i = 17; i <= 24; i++)
     {
-        srand(42);
+        mt.seed(42);
         unsigned int size = 1U<<i;
         printf("2^%d\n", i);
         fprintf(perf_file, "%d", size);
+        fill_requests_array(size, random_requests_array);
 
         start_time = clock();
         veb* a = create_veb(size);
@@ -243,17 +240,17 @@ int main(int argc, char const *argv[])
 
         start_time = clock();
         veb_fill_random(a, 1000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, random_array));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_array));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_member_time(a, random_requests_array));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, random_requests_array));
         veb_fill_random(a, 9000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, random_array));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_array));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_member_time(a, random_requests_array));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, random_requests_array));
         veb_fill_random(a, 90000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, random_array));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_array));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, random_array));
+        fprintf(perf_file, " %f", veb_random_member_time(a, random_requests_array));
+        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
+        fprintf(perf_file, " %f", veb_random_successor_time(a, random_requests_array));
 
         end_time = clock();
         start_time = clock();
