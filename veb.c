@@ -152,26 +152,34 @@ void veb_tree_insert(veb* v, unsigned int x) {
     }
 }
 
+unsigned long long int count_veb_size(unsigned int u) {
+    unsigned int upper_sqrt = veb_upper_sqrt(u);
+    unsigned int lower_sqrt = veb_lower_sqrt(u);
+    return sizeof(veb) + (u > 2 ? count_veb_size(upper_sqrt) + sizeof(veb*)*upper_sqrt + count_veb_size(lower_sqrt)*upper_sqrt  : 0);
+}
+
 veb* create_veb(unsigned int u) {
-    veb* new_veb = (veb*)malloc(sizeof(veb));
-    
-    if (!new_veb) return NULL;
-    new_veb->max = NIL;
-    new_veb->min = NIL;
-    new_veb->u = u;
+    static char* new_veb;
+    static unsigned int offset = 0;
+    int root = offset == 0 ? 1 : 0;
+    unsigned int current_offset = offset;
+    if (root) new_veb = malloc(count_veb_size(u));
+    ((veb*)(new_veb + current_offset))->max = NIL;
+    ((veb*)(new_veb + current_offset))->min = NIL;
+    ((veb*)(new_veb + current_offset))->u = u;
+    offset += sizeof(veb);
     if (u > 2) {
         unsigned int upper_sqrt = veb_upper_sqrt(u);
         unsigned int lower_sqrt = veb_lower_sqrt(u);
-        new_veb->summary = create_veb(upper_sqrt);
-        if (!(new_veb->summary)) return NULL;
-        new_veb->cluster = (veb**)malloc(upper_sqrt * sizeof(veb*));
-        if (!(new_veb->cluster)) return NULL;
+        ((veb*)(new_veb + current_offset))->summary = create_veb(upper_sqrt);
+        ((veb*)(new_veb + current_offset))->cluster = (veb**)(new_veb + offset);
+        offset += upper_sqrt * sizeof(veb*);
         for (int i = 0; i < upper_sqrt; i++){
-            new_veb->cluster[i] = create_veb(lower_sqrt);
-            if (!(new_veb->cluster[i])) return NULL;
+            ((veb*)(new_veb + current_offset))->cluster[i] = create_veb(lower_sqrt);
         }
     }
-    return new_veb;
+    if (root) offset = 0;
+    return (veb*)new_veb + current_offset;
 }
 
 void destroy_veb(veb* veb) {
