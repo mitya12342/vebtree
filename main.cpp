@@ -3,13 +3,17 @@
 #include <time.h>
 #include "veb.c"
 #include <random>
+#include <chrono>
 
 #define requests 1000000
+
+using namespace std;
+
 unsigned int random_requests_array[requests];
-std::mt19937 mt;
+mt19937 mt;
 
 void fill_requests_array(unsigned int u, unsigned int* array){
-    std::uniform_int_distribution<unsigned int> distrib(0, u-1);
+    uniform_int_distribution<unsigned int> distrib(0, u-1);
     for (unsigned int i = 0; i < requests; i++)
     {
         array[i] = distrib(mt);
@@ -35,12 +39,8 @@ int compare_files(FILE *f1, FILE *f2)
   
 }
 
-int ms_time(clock_t start, clock_t end) {
-    return (int)((double) (end - start)) / (CLOCKS_PER_SEC / 1000);
-}
-
 void veb_fill_random(veb* v, unsigned int n) {
-    std::uniform_int_distribution<unsigned int> distrib(0, v->u-1);
+    uniform_int_distribution<unsigned int> distrib(0, v->u-1);
     for (unsigned int i = 0; i < n; i++)
     {
         unsigned int num;
@@ -57,30 +57,33 @@ void veb_fill_random(veb* v, unsigned int n) {
 }
 
 double veb_random_member_time(veb* v, unsigned int* random) {
-    time_t start = clock();
+    auto start = chrono::high_resolution_clock::now();
     for (unsigned int i = 0; i < requests; i++)
     {
         veb_tree_member(v, random[i]);
     }
-    return ((double)ms_time(start, clock()))/requests*1000000;
+    auto stop = chrono::high_resolution_clock::now();
+    return chrono::duration<double, nano>(stop-start).count()/requests;
 }
 
 double veb_random_successor_time(veb* v, unsigned int* random) {
-    time_t start = clock();
+    auto start = chrono::high_resolution_clock::now();
     for (unsigned int i = 0; i < requests; i++)
     {
         veb_tree_successor(v, random[i]);
     }
-    return ((double)ms_time(start, clock()))/requests*1000000;
+    auto stop = chrono::high_resolution_clock::now();
+    return chrono::duration<double, nano>(stop-start).count()/requests;
 }
 
 double veb_random_predecessor_time(veb* v, unsigned int* random) {
-    time_t start = clock();
+    auto start = chrono::high_resolution_clock::now();
     for (unsigned int i = 0; i < requests; i++)
     {
         veb_tree_predecessor(v, random[i]);
     }
-    return ((double)ms_time(start, clock()))/requests*1000000;
+    auto stop = chrono::high_resolution_clock::now();
+    return chrono::duration<double, nano>(stop-start).count()/requests;
 }
 
 int main(int argc, char const *argv[])
@@ -95,8 +98,7 @@ int main(int argc, char const *argv[])
         char in_file_path[40];
         char out_file_path[40];
         char result_path[40];
-        int creation_time, commands_time, destruction_time;
-        clock_t start_time, end_time;
+        unsigned int creation_time, commands_time, destruction_time;
         sprintf(in_file_path, "tests/%i/in.txt", current_test);
         sprintf(out_file_path, "tests/%i/out.txt", current_test);
         FILE* in_file = fopen(in_file_path, "r");
@@ -106,18 +108,18 @@ int main(int argc, char const *argv[])
         
         unsigned int tree_size;
         fscanf(in_file, "%u", &tree_size);
-        start_time = clock();
+        auto start_time = chrono::high_resolution_clock::now();
         veb* v = create_veb(tree_size);
-        end_time = clock();
+        auto end_time = chrono::high_resolution_clock::now();
         if (!v)
         {
             printf("Test %d: failed to create tree of size %d\n", current_test, tree_size);
             exit(1);
         }
         
-        creation_time = (ms_time(start_time, end_time));
+        creation_time = chrono::duration_cast<chrono::milliseconds>(end_time-start_time).count();
         char command_type;
-        start_time = clock();
+        start_time = chrono::high_resolution_clock::now();
         while (fscanf(in_file, "\n%c", &command_type) != EOF)
         {
             unsigned int command_argument;
@@ -185,12 +187,12 @@ int main(int argc, char const *argv[])
             // print_veb_contents(v);
             // printf("\n");
         }
-        end_time = clock();
-        commands_time = (ms_time(start_time, end_time));
-        start_time = clock();
+        end_time = chrono::high_resolution_clock::now();
+        commands_time = chrono::duration_cast<chrono::milliseconds>(end_time-start_time).count();
+        start_time = chrono::high_resolution_clock::now();
         destroy_veb(v);
-        end_time = clock();
-        destruction_time = (ms_time(start_time, end_time));
+        end_time = chrono::high_resolution_clock::now();
+        destruction_time = chrono::duration_cast<chrono::milliseconds>(end_time-start_time).count();
         FILE* out_file = fopen(out_file_path, "r");
         fclose(result_file);
         result_file = fopen(result_path, "r");
@@ -216,7 +218,6 @@ int main(int argc, char const *argv[])
     printf("OK: %d, FAIL: %d \n", successfull_tests, failed_tests);
 
     printf("Performance tests\n");
-    time_t start_time, end_time;
 
     FILE* perf_file = fopen("perf.txt", "w");
 
@@ -228,17 +229,17 @@ int main(int argc, char const *argv[])
         fprintf(perf_file, "%d", size);
         fill_requests_array(size, random_requests_array);
 
-        start_time = clock();
+        auto start_time = chrono::high_resolution_clock::now();
         veb* a = create_veb(size);
-        end_time = clock();
+        auto end_time = chrono::high_resolution_clock::now();
         if (a == NULL) {
             printf("\nFailed to create tree of size 2^%d\n", i);
             exit(1);
         };
-        int time = ms_time(start_time, end_time);
+        int time = chrono::duration_cast<chrono::milliseconds>(end_time-start_time).count();
         fprintf(perf_file, " %d", time);
 
-        start_time = clock();
+        // start_time = chrono::high_resolution_clock::now();
         veb_fill_random(a, 1000);
         fprintf(perf_file, " %f", veb_random_member_time(a, random_requests_array));
         fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
@@ -252,11 +253,11 @@ int main(int argc, char const *argv[])
         fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
         fprintf(perf_file, " %f", veb_random_successor_time(a, random_requests_array));
 
-        end_time = clock();
-        start_time = clock();
+        // end_time = chrono::high_resolution_clock::now();
+        start_time = chrono::high_resolution_clock::now();
         destroy_veb(a);
-        end_time = clock();
-        time = ms_time(start_time, end_time);
+        end_time = chrono::high_resolution_clock::now();
+        time = chrono::duration_cast<chrono::milliseconds>(end_time-start_time).count();
         fprintf(perf_file, " %d", time);
 
         fprintf(perf_file, "\n");
