@@ -106,14 +106,14 @@ int main(int argc, char const *argv[])
         sprintf(result_path, "results/%i.txt", current_test);
         FILE* result_file = fopen(result_path, "w");
         
-        unsigned int tree_size;
-        fscanf(in_file, "%u", &tree_size);
+        unsigned int tree_upper_bound;
+        fscanf(in_file, "%u", &tree_upper_bound);
         auto start_time = chrono::high_resolution_clock::now();
-        veb* v = create_veb(tree_size);
+        veb* v = create_veb(tree_upper_bound);
         auto end_time = chrono::high_resolution_clock::now();
         if (!v)
         {
-            printf("Test %d: failed to create tree of size %d\n", current_test, tree_size);
+            printf("Test %d: failed to create tree of size %d\n", current_test, tree_upper_bound);
             exit(1);
         }
         
@@ -224,13 +224,13 @@ int main(int argc, char const *argv[])
     for (int i = 17; i <= 24; i++)
     {
         mt.seed(42);
-        unsigned int size = 1U<<i;
+        unsigned int tree_upper_bound = 1U<<i;
         printf("2^%d\n", i);
-        fprintf(perf_file, "%d", size);
-        fill_requests_array(size, random_requests_array);
+        fprintf(perf_file, "%d", tree_upper_bound);
+        fill_requests_array(tree_upper_bound, random_requests_array);
 
         auto start_time = chrono::high_resolution_clock::now();
-        veb* a = create_veb(size);
+        veb* a = create_veb(tree_upper_bound);
         auto end_time = chrono::high_resolution_clock::now();
         if (a == NULL) {
             printf("\nFailed to create tree of size 2^%d\n", i);
