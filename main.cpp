@@ -4,8 +4,14 @@
 #include "veb.c"
 #include <random>
 #include <chrono>
+#include <vector>
+#include <numeric>
+#include <algorithm>
+#include <set>
+#include <unordered_set>
 
 #define requests 1000000
+#define comparison_steps 10
 
 using namespace std;
 
@@ -219,14 +225,14 @@ int main(int argc, char const *argv[])
 
     printf("Performance tests\n");
 
-    FILE* perf_file = fopen("perf.txt", "w");
+    FILE* veb_perf_file = fopen("perf.txt", "w");
 
     for (int i = 17; i <= 24; i++)
     {
         mt.seed(42);
         unsigned int tree_upper_bound = 1U<<i;
         printf("2^%d\n", i);
-        fprintf(perf_file, "%d", tree_upper_bound);
+        fprintf(veb_perf_file, "%d", tree_upper_bound);
         fill_requests_array(tree_upper_bound, random_requests_array);
 
         auto start_time = chrono::high_resolution_clock::now();
@@ -237,31 +243,119 @@ int main(int argc, char const *argv[])
             exit(1);
         };
         int time = chrono::duration_cast<chrono::milliseconds>(end_time-start_time).count();
-        fprintf(perf_file, " %d", time);
+        fprintf(veb_perf_file, " %d", time);
 
         // start_time = chrono::high_resolution_clock::now();
         veb_fill_random(a, 1000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, random_requests_array));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_member_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_successor_time(a, random_requests_array));
         veb_fill_random(a, 9000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, random_requests_array));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_member_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_successor_time(a, random_requests_array));
         veb_fill_random(a, 90000);
-        fprintf(perf_file, " %f", veb_random_member_time(a, random_requests_array));
-        fprintf(perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
-        fprintf(perf_file, " %f", veb_random_successor_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_member_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_predecessor_time(a, random_requests_array));
+        fprintf(veb_perf_file, " %f", veb_random_successor_time(a, random_requests_array));
 
         // end_time = chrono::high_resolution_clock::now();
         start_time = chrono::high_resolution_clock::now();
         destroy_veb(a);
         end_time = chrono::high_resolution_clock::now();
         time = chrono::duration_cast<chrono::milliseconds>(end_time-start_time).count();
-        fprintf(perf_file, " %d", time);
+        fprintf(veb_perf_file, " %d", time);
 
-        fprintf(perf_file, "\n");
+        fprintf(veb_perf_file, "\n");
     }
+    fclose(veb_perf_file);
+
+    printf("Performance comparison\n");
+    FILE* veb_perf_comp_file = fopen("perf_comp.txt", "w");
+    printf("Preparing unique random numbers\n");
+    mt.seed(321);
+    vector<unsigned int> unique_random(1<<26);
+    iota(unique_random.begin(), unique_random.end(), 0);
+    shuffle(unique_random.begin(), unique_random.end(), mt);
+    printf("Preparing random requests\n");
+    mt.seed(123);
+    fill_requests_array(1<<26, random_requests_array);
+    printf("Creating 2^26 veb tree \n");
+    veb* test_veb = create_veb(1<<26);
+    printf("Testing veb tree\n");
+    unsigned int step_size = (1<<26)/comparison_steps;
+    mt.seed(42);
+    for (int i = 0; i < comparison_steps; i++)
+    {
+        for (unsigned int j = 0; j < step_size; j++)
+        {
+            veb_tree_insert(test_veb, unique_random[step_size*i+j]);
+        }
+        fprintf(veb_perf_comp_file, "%d %f %f %f\n",
+                                    step_size*(i+1),
+                                    veb_random_member_time(test_veb, random_requests_array),
+                                    veb_random_successor_time(test_veb, random_requests_array),
+                                    veb_random_predecessor_time(test_veb, random_requests_array));
+        printf("%d\n", i);
+    }
+    fprintf(veb_perf_comp_file, "#\n");
+    printf("Destroying veb tree \n");
+    destroy_veb(test_veb);
+    printf("Testing set\n");
+    set<unsigned int> test_set;
+    mt.seed(42);
+    for (int i = 0; i < comparison_steps; i++)
+    {
+        for (unsigned int j = 0; j < step_size; j++)
+        {
+            test_set.insert(unique_random[step_size*i+j]);
+        }
+        auto start = chrono::high_resolution_clock::now();
+        for (unsigned int j = 0; j < requests; j++)
+        {
+            test_set.find(random_requests_array[j]);
+        }
+        auto stop = chrono::high_resolution_clock::now();
+        double find = chrono::duration<double, nano>(stop-start).count()/requests;
+        start = chrono::high_resolution_clock::now();
+        for (unsigned int j = 0; j < requests; j++)
+        {
+            test_set.upper_bound(random_requests_array[j]);
+        }
+        stop = chrono::high_resolution_clock::now();
+        double successor = chrono::duration<double, nano>(stop-start).count()/requests;
+        start = chrono::high_resolution_clock::now();
+        for (unsigned int j = 0; j < requests; j++)
+        {
+            test_set.lower_bound(random_requests_array[j]);
+        }
+        stop = chrono::high_resolution_clock::now();
+        double predecessor = chrono::duration<double, nano>(stop-start).count()/requests;
+        fprintf(veb_perf_comp_file, "%f %f %f\n", find, successor, predecessor);
+        printf("%d\n", i);
+    }
+    test_set.clear();
+    fprintf(veb_perf_comp_file, "#\n");
+    printf("Testing unordered set\n");
+    unordered_set<unsigned int> test_unordered_set;
+    mt.seed(42);
+    for (int i = 0; i < comparison_steps; i++)
+    {
+        for (unsigned int j = 0; j < step_size; j++)
+        {
+            test_unordered_set.insert(unique_random[step_size*i+j]);
+        }
+        auto start = chrono::high_resolution_clock::now();
+        for (unsigned int j = 0; j < requests; j++)
+        {
+            test_unordered_set.find(random_requests_array[j]);
+        }
+        auto stop = chrono::high_resolution_clock::now();
+        fprintf(veb_perf_comp_file, "%f\n", chrono::duration<double, nano>(stop-start).count()/requests);
+        printf("%d\n", i);
+    }
+    test_unordered_set.clear();
+
     
     return 0;
 }
